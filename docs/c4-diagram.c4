@@ -1,0 +1,186 @@
+specification {
+  element actor
+  element system
+  element component
+  element service
+  element storage
+  element broker
+}
+
+model {
+  user = actor 'User' {
+    description 'The regular user of the social network'
+    style {
+      color amber 
+    }
+  }
+
+  user -> sn.ui
+
+  sn = system 'Social Network' {
+    ui = component 'UI' {
+      description 'Common UI for the SN containing login/password fields, buttons, sections ans etc. '
+    }
+
+    ui -> api_gw 'REST API'
+
+    api_gw = service 'API Service' {
+      description 'Handles requests from the UI and sends them to the corresponding services'
+      style {
+        color red
+      }
+    }
+
+    api_gw -> users_srv.api 'network'
+
+    users_srv.api -> users_srv.db 'network'
+
+    api_gw -> msg_broker
+    
+    msg_broker -> stats_srv.api
+
+    stats_srv.api -> stats_srv.db
+
+    api_gw -> posts_srv.api 'network'
+
+    posts_srv.api -> posts_srv.db
+
+
+    users_srv = service 'Users Service' {
+      description 'Handles users registration, authentication, and contains all the data about them and their roles.'
+
+      api = component 'API' {
+        description 'Handles registartion, authentication, keeps and saves users info in its DB'
+        style {
+          size small
+          textSize lg
+        }
+      }
+
+
+      db = storage 'PostgreSQL' {
+        style {
+          icon https://icons.terrastruct.com/dev%2Fpostgresql.svg
+          size small
+          textSize lg
+          shape storage
+        }
+      }
+
+    }
+
+    msg_broker = broker 'Message Broker'{
+      style {
+        shape queue
+        size xs
+        textSize medium
+      }
+    }
+
+    stats_srv = service 'Statistics Service' {
+      description 'Handles likes, reposts, views and comments counting'
+      
+      api = component 'API' {
+        description 'Handles  likes, reposts, views and comments counting'
+        style {
+          size small
+          textSize lg
+        }
+      }
+
+      db = storage 'ClickHouse' {
+        style {
+          size small
+          textSize lg
+          shape storage
+          icon https://marketplace-assets.digitalocean.com/logos/clickhouse.svg
+        }
+      }
+    }
+
+    posts_srv = service 'Posts Service' {
+      description 'Handles posts and their comments'
+
+      api = component 'API' {
+        description 'Handles posts ans their comments'
+        style {
+          size small
+          textSize lg
+        }
+      }
+
+
+      db = storage 'PostgreSQL' {
+        style {
+          icon https://icons.terrastruct.com/dev%2Fpostgresql.svg
+          size small
+          textSize lg
+          shape storage
+        }
+      }
+    }
+    
+
+
+
+
+  }
+}
+
+views {
+
+  view index {
+    title 'System Context'
+    description 'Level 1 of the C4 model'
+
+    include user
+    include sn with {
+      navigateTo container
+    }
+    style user {
+      shape person
+    }
+    style sn {
+      shape rectangle
+    }
+  }
+
+
+ 
+  /**
+   * @likec4-generated(v1)
+   * iKRoYXNo2SgxZWNlYmE3YzE4NjMxYmI3Nzc3MjM2NmE2OTZiMTQzZjBiOGE1ZjM0qmF1dG9MYXlvdXSBqWRpcmVjdGlvbqJUQqF4AKF5AKV3aWR0aM0LP6ZoZWlnaHTNBRKlbm9kZXOOpHVzZXKCoWKUzQUrAM0BQMy0oWPConNugqFilAjM/80LN80DnaFjw6Vzbi51aYKhYpTNBSfNATbNAUjMtKFjwqlzbi5hcGlfZ3eCoWKUzQUezQJ5zQFazLShY8Ksc24udXNlcnNfc3J2gqFilDDNA4jNA1XM7KFjw61zbi5tc2dfYnJva2VygqFilM0G0c0D28y0XKFjwqxzbi5wb3N0c19zcnaCoWKUzQOtzQOIzQLezOyhY8Osc24uc3RhdHNfc3J2gqFilM0H5c0DfM0DMszsoWPDsHNuLnVzZXJzX3Nydi5hcGmCoWKUWM0Dxc0BcMyHoWPCr3NuLnVzZXJzX3Nydi5kYoKhYpTNAm3N
+   * A8XM8MyHoWPCsHNuLnBvc3RzX3Nydi5hcGmCoWKUzQPVzQPFzQEwzIehY8Kvc24ucG9zdHNfc3J2LmRigqFilM0Fc80DxczwzIehY8Kwc24uc3RhdHNfc3J2LmFwaYKhYpTNCA3NA7nNAYPMh6Fjwq9zbi5zdGF0c19zcnYuZGKCoWKUzQn/zQO5zPDMh6FjwqVlZGdlc4mnMWpvZmZkZ4GhcJSSzQXLzLSSzQXLzNmSzQXLzQEFks0Fy80BLKZocnd5amyCoWyEoXjNBcyhec0CJqV3aWR0aESmaGVpZ2h0EqFwlJLNBcvNAeqSzQXLzQITks0Fy80CRJLNBcvNAm+nMTBwc2x1cIKhbISheM0CmKF5zQNppXdpZHRoNaZoZWlnaHQSoXCXks0FHs0C65LNBGTNAwWSzQMzzQM5ks0CNs0DiJLNAgXNA5eSzQHQzQOsks0Bos0DwaY4OG56Y2+BoXCXks0GO80DLZLNBl7NA0mSzQaE
+   * zQNpks0Gps0DiJLNBsHNA6CSzQbfzQO8ks0G980D06cxd2RqcDJngqFshKF4zQUdoXnNA2mld2lkdGg1pmhlaWdodBKhcJSSzQVmzQMtks0FMc0DW5LNBPLNA5OSzQTAzQO+pzFjMmtkYXOCoWyEoXjNAgChec0D7qV3aWR0aDWmaGVpZ2h0EqFwlJLNAcjNBAmSzQH7zQQJks0CMs0ECZLNAmLNBAmmdXp0dDY4gqJjcJOCoXjNB4ihec0EF4KheM0Hd6F5zQQKgqF4zQeCoXnNBAqhcJqSzQb9zQQ2ks0G5c0ETJLNBsbNBGSSzQamzQR0ks0GeM0Ei5LNBmbNBH+SzQY2zQSRks0GDc0EoZLNBeHNBLWSzQW7zQTKpjgwa3Jqb4KiY3CRgqF4zQmVoXnNBAqhcJSSzQX+zQUSks0GIM0FEpLNBkHNBRKSzQZizQUSpnQxcXkyY4GhcJSSzQUFzQQJks0FJs0ECZLNBUfNBAmSzQVo
+   * zQQJ
+   */
+  view container {
+    title 'Container Diagram'
+    description 'Level 2 of the C4 model'
+    include *
+
+    style user {
+      color muted
+    }
+    include sn.**
+    style sn.stats_srv.db {
+      color gray
+    }
+    style sn.users_srv.db {
+      color gray
+      shape storage
+    }
+    style sn.posts_srv.db {
+      color gray
+    }
+    style sn.users_srv.api {
+      color green
+    }
+    style sn.stats_srv.api {
+      color green
+    }
+    style sn.posts_srv.api {
+      color green
+    }
+  }
+}
