@@ -1,0 +1,42 @@
+@startuml "Posts Service"
+entity Post {
+    * post_id : UUID [PK]
+    --
+    user_id : UUID [FK]
+    content : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    visibility : VARCHAR(20)
+}
+
+entity Comment {
+    * comment_id : UUID [PK]
+    --
+    post_id : UUID [FK]
+    user_id : UUID [FK]
+    content : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity Media {
+    * media_id : UUID [PK]
+    --
+    post_id : UUID [FK]
+    media_type : VARCHAR(50)
+    url : TEXT
+    uploaded_at : TIMESTAMP
+}
+
+entity PostLike {
+    * like_id : UUID [PK]
+    --
+    post_id : UUID [FK]
+    user_id : UUID [FK]
+    liked_at : TIMESTAMP
+}
+
+Post ||--o{ Comment : has
+Post ||--o{ Media : includes
+Post ||--o{ PostLike : receives
+@enduml

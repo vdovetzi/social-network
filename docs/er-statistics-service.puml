@@ -1,0 +1,41 @@
+@startuml "Statistics Service"
+entity Post {
+    * post_id : UUID [PK]
+    --
+    user_id : UUID [FK]
+    content : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    visibility : VARCHAR(20)
+}
+
+entity PostView {
+    * view_id : UUID [PK]
+    --
+    post_id : UUID [FK]
+    user_id : UUID [FK]
+    viewed_at : TIMESTAMP
+}
+
+entity PostStats {
+    * post_id : UUID [PK]
+    --
+    views_count : INTEGER
+    likes_count : INTEGER
+    comments_count : INTEGER
+    last_updated : TIMESTAMP
+}
+
+entity CommentStats {
+    * post_id : UUID [FK]
+    * comment_id : UUID [PK]
+    --
+    comment_count : INTEGER
+    last_updated : TIMESTAMP
+}
+
+Post ||--o{ PostView : logs
+Post ||--o{ PostStats : tracks
+Post ||--o{ CommentStats : monitors
+@enduml
+

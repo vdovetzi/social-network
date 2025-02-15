@@ -1,0 +1,41 @@
+@startuml "Users Service"
+entity User {
+    * user_id : UUID [PK]
+    --
+    username : VARCHAR(50) [UNIQUE]
+    email : VARCHAR(100) [UNIQUE]
+    password_hash : VARCHAR(255)
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity UserProfile {
+    * profile_id : UUID [PK]
+    --
+    user_id : UUID [FK]
+    first_name : VARCHAR(50)
+    last_name : VARCHAR(50)
+    birthdate : DATE
+    bio : TEXT
+}
+
+entity UserRole {
+    * role_id : UUID [PK]
+    --
+    user_id : UUID [FK]
+    role_name : VARCHAR(50)
+    assigned_at : TIMESTAMP
+}
+
+entity Session {
+    * session_id : UUID [PK]
+    --
+    user_id : UUID [FK]
+    session_token : TEXT [UNIQUE]
+    expires_at : TIMESTAMP
+}
+
+User ||--|| UserProfile : has
+User ||--o{ UserRole : assigned
+User ||--o{ Session : maintains
+@enduml
