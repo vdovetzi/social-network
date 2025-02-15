@@ -2,11 +2,10 @@
 entity User {
     * user_id : UUID [PK]
     --
-    username : VARCHAR(50) [UNIQUE]
-    email : VARCHAR(100) [UNIQUE]
+    username : VARCHAR(50)
+    email : VARCHAR(100)
     password_hash : VARCHAR(255)
     created_at : TIMESTAMP
-    updated_at : TIMESTAMP
 }
 
 entity UserProfile {
@@ -23,19 +22,21 @@ entity UserRole {
     * role_id : UUID [PK]
     --
     user_id : UUID [FK]
-    role_name : VARCHAR(50)
+    role_name : VARCHAR(20)
     assigned_at : TIMESTAMP
+    is_active : BOOLEAN
 }
 
 entity Session {
     * session_id : UUID [PK]
     --
     user_id : UUID [FK]
-    session_token : TEXT [UNIQUE]
+    token : TEXT
+    created_at : TIMESTAMP
     expires_at : TIMESTAMP
 }
 
-User ||--|| UserProfile : has
+User ||--o{ UserProfile : has
 User ||--o{ UserRole : assigned
-User ||--o{ Session : maintains
+User ||--o{ Session : owns
 @enduml
