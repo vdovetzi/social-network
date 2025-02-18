@@ -121,11 +121,6 @@ model {
         }
       }
     }
-    
-
-
-
-
   }
 }
 
@@ -146,10 +141,6 @@ views {
       shape rectangle
     }
   }
-
-
- 
-
   view container {
     title 'Container Diagram'
     description 'Level 2 of the C4 model'
