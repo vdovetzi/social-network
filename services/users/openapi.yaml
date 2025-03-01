@@ -1,0 +1,361 @@
+openapi: 3.0.0
+info:
+  title: Users Service API
+  description: API for user authentication, roles management, session handling, and profile management.
+  version: 1.0.0
+  contact:
+    name: Ilya Vdovets
+    email: ilya.vdoets@gmail.com
+
+paths:
+  /signup:
+    post:
+      summary: User signup
+      description: Creates a new user with username, password, and email.
+      operationId: signup
+      requestBody:
+        description: User signup data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: The user's chosen username.
+                password:
+                  type: string
+                  description: The user's password.
+                email:
+                  type: string
+                  format: email
+                  description: The user's email address.
+              required:
+                - username
+                - password
+                - email
+      responses:
+        '200':
+          description: Signup successful
+          headers:
+            Set-Cookie:
+              description: JWT token for user authentication
+              schema:
+                type: string
+        '400':
+          description: Missing required fields or invalid email
+        '403':
+          description: User already exists
+
+  /login:
+    post:
+      summary: User login
+      description: Authenticates a user and creates a session.
+      operationId: login
+      requestBody:
+        description: User login data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: The user's username.
+                password:
+                  type: string
+                  description: The user's password.
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: JWT token for user authentication
+              schema:
+                type: string
+        '400':
+          description: Missing required fields
+        '403':
+          description: Invalid credentials
+        '404':
+          description: User not found
+        '409':
+          description: Session already exists
+
+  /profile:
+    get:
+      summary: Get user profile
+      description: Retrieves the user's profile information based on the JWT token.
+      operationId: getProfile
+      responses:
+        '200':
+          description: Profile data returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  phone_number:
+                    type: string
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+                  birthdate:
+                    type: string
+                    format: date
+                  bio:
+                    type: string
+        '400':
+          description: Token expired or invalid
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Unauthorized
+        '404':
+          description: User not found
+
+    put:
+      summary: Update user profile
+      description: Updates the user's profile information based on the JWT token.
+      operationId: updateProfile
+      requestBody:
+        description: Profile update data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone_number:
+                  type: string
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                birthdate:
+                  type: string
+                  format: date
+                bio:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated successfully
+        '400':
+          description: Invalid data format
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Unauthorized
+        '409':
+          description: Error occurred while updating profile
+
+  /roles:
+    post:
+      summary: Assign role to a user
+      description: Assigns a role to a user based on the JWT token.
+      operationId: assignRole
+      requestBody:
+        description: Role assignment data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_name:
+                  type: string
+                  description: The role to be assigned to the user.
+              required:
+                - role_name
+      responses:
+        '200':
+          description: Role assigned successfully
+        '400':
+          description: Invalid role data
+        '401':
+          description: Missing or invalid token
+        '409':
+          description: Role already assigned
+
+    get:
+      summary: Get user roles
+      description: Retrieves all roles assigned to the user based on the JWT token.
+      operationId: getRoles
+      responses:
+        '200':
+          description: Roles data returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    role_name:
+                      type: string
+                    assigned_at:
+                      type: string
+                      format: date-time
+                    is_active:
+                      type: boolean
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: User not found
+
+    delete:
+      summary: Delete a role from a user
+      description: Deletes a specific role from a user based on the JWT token.
+      operationId: deleteRole
+      requestBody:
+        description: Role deletion data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_name:
+                  type: string
+                  description: The role to be deleted.
+              required:
+                - role_name
+      responses:
+        '200':
+          description: Role deleted successfully
+        '400':
+          description: Invalid role data
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Role not found
+
+  /sessions:
+    get:
+      summary: Get user sessions
+      description: Retrieves all active sessions for the user based on the JWT token.
+      operationId: getSessions
+      responses:
+        '200':
+          description: Session data returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    session_id:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    expires_at:
+                      type: string
+                      format: date-time
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: User not found
+
+  /logout:
+    delete:
+      summary: Log out of a session
+      description: Logs out of a specific session based on the JWT token.
+      operationId: logoutSession
+      requestBody:
+        description: Session logout data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  description: The session ID to log out of.
+              required:
+                - session_id
+      responses:
+        '200':
+          description: Session logged out successfully
+        '400':
+          description: Invalid session data
+        '401':
+          description: Missing or invalid token
+
+  /drop_tables:
+    delete:
+      summary: Drop database tables
+      description: Deletes specified tables in the database based on the JWT token.
+      operationId: dropTables
+      requestBody:
+        description: Tables to be dropped
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tables:
+                  type: array
+                  items:
+                    type: string
+                  description: List of table names to drop.
+              required:
+                - tables
+      responses:
+        '200':
+          description: Tables deleted successfully
+        '400':
+          description: Invalid table data or missing 'tables' field
+        '401':
+          description: Missing or invalid token
+  /health:
+    get:
+      summary: Check server health
+      description: Check the health of the server and database.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: "Service is alive"
+
+components:
+  schemas:
+    Profile:
+      type: object
+      properties:
+        phone_number:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        birthdate:
+          type: string
+          format: date
+        bio:
+          type: string
+    Role:
+      type: object
+      properties:
+        role_name:
+          type: string
+        assigned_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean

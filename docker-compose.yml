@@ -1,0 +1,62 @@
+services:
+  auth_db:
+    image: postgres:15
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    build: 
+        context: services/users
+    depends_on:
+      auth_db:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./services/users:/users
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 5s
+      retries: 5
+      timeout: 3s
+
+  gateway_api:
+    build:
+      context: services/gateway
+    env_file:
+      - .env
+    depends_on:
+      auth:
+          condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./services/gateway:/gateway
+  tests:
+    build:
+        context: services/tests
+    env_file:
+      - .env
+    depends_on:
+      - gateway_api
+    volumes:
+      - ./services/tests:/tests
+
+volumes:
+  pgdata:
