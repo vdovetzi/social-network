@@ -32,7 +32,7 @@ def wait_for_socket(host, port):
 
 @pytest.fixture
 def auth_addr():
-    addr = os.environ.get('PROXY_SERVER_URL', 'http://gateway_api:5000')
+    addr = os.environ.get('PROXY_SERVER_URL', 'http://gateway_api:5000/users')
     host = urllib.parse.urlparse(addr).hostname
     port = urllib.parse.urlparse(addr).port
     wait_for_socket(host, port)

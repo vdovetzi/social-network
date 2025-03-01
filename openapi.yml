@@ -1,14 +1,14 @@
 openapi: 3.0.0
 info:
-  title: Users Service API
-  description: API for user authentication, roles management, session handling, and profile management.
+  title: Service API
+  description: API for Social Network
   version: 1.0.0
   contact:
     name: Ilya Vdovets
-    email: ilya.vdoets@gmail.com
+    email: ilya.vdovets@gmail.com
 
 paths:
-  /signup:
+  /users/signup:
     post:
       summary: User signup
       description: Creates a new user with username, password, and email.
@@ -48,7 +48,7 @@ paths:
         '403':
           description: User already exists
 
-  /login:
+  /users/login:
     post:
       summary: User login
       description: Authenticates a user and creates a session.
@@ -87,7 +87,7 @@ paths:
         '409':
           description: Session already exists
 
-  /profile:
+  /users/profile:
     get:
       summary: Get user profile
       description: Retrieves the user's profile information based on the JWT token.
@@ -162,7 +162,7 @@ paths:
         '409':
           description: Error occurred while updating profile
 
-  /roles:
+  /users/roles:
     post:
       summary: Assign role to a user
       description: Assigns a role to a user based on the JWT token.
@@ -243,7 +243,7 @@ paths:
         '404':
           description: Role not found
 
-  /sessions:
+  /users/sessions:
     get:
       summary: Get user sessions
       description: Retrieves all active sessions for the user based on the JWT token.
@@ -271,7 +271,7 @@ paths:
         '404':
           description: User not found
 
-  /logout:
+  /users/logout:
     delete:
       summary: Log out of a session
       description: Logs out of a specific session based on the JWT token.
@@ -297,7 +297,7 @@ paths:
         '401':
           description: Missing or invalid token
 
-  /drop_tables:
+  /users/drop_tables:
     delete:
       summary: Drop database tables
       description: Deletes specified tables in the database based on the JWT token.
@@ -324,7 +324,7 @@ paths:
           description: Invalid table data or missing 'tables' field
         '401':
           description: Missing or invalid token
-  /health:
+  /users/health:
     get:
       summary: Check server health
       description: Check the health of the server and database.
