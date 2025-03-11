@@ -1,0 +1,173 @@
+specification {
+  element actor
+  element system
+  element component
+  element service
+  element storage
+  element broker
+}
+
+model {
+  user = actor 'User' {
+    description 'The regular user of the social network'
+    style {
+      color amber 
+    }
+  }
+
+  user -> sn.ui
+
+  sn = system 'Social Network' {
+    ui = component 'UI' {
+      description 'Common UI for the SN containing login/password fields, buttons, sections ans etc. '
+    }
+
+    ui -> api_gw 'REST API'
+
+    api_gw = service 'API Service' {
+      description 'Handles requests from the UI and sends them to the corresponding services'
+      style {
+        color red
+      }
+    }
+
+    api_gw -> users_srv.api 'network'
+
+    users_srv.api -> users_srv.db
+
+    api_gw -> stats_srv.api
+
+    stats_srv.api -> stats_srv.db
+
+    api_gw -> posts_srv.api 'network'
+
+    posts_srv.api -> posts_srv.db
+
+    posts_srv.api -> msg_broker
+
+    msg_broker  -> stats_srv.api
+
+
+    users_srv = service 'Users Service' {
+      description 'Handles users registration, authentication, and contains all the data about them and their roles.'
+
+      api = component 'API' {
+        description 'Handles registartion, authentication, keeps and saves users info in its DB'
+        style {
+          size small
+          textSize lg
+        }
+      }
+
+
+      db = storage 'PostgreSQL' {
+        style {
+          icon https://icons.terrastruct.com/dev%2Fpostgresql.svg
+          size small
+          textSize lg
+          shape storage
+        }
+      }
+
+    }
+
+    msg_broker = broker 'Message Broker'{
+      style {
+        shape queue
+        size xs
+        textSize medium
+      }
+    }
+
+    stats_srv = service 'Statistics Service' {
+      description 'Handles likes, reposts, views and comments counting'
+      
+      api = component 'API' {
+        description 'Handles  likes, reposts, views and comments counting'
+        style {
+          size small
+          textSize lg
+        }
+      }
+
+      db = storage 'ClickHouse' {
+        style {
+          size small
+          textSize lg
+          shape storage
+          icon https://marketplace-assets.digitalocean.com/logos/clickhouse.svg
+        }
+      }
+    }
+
+    posts_srv = service 'Posts Service' {
+      description 'Handles posts and their comments'
+
+      api = component 'API' {
+        description 'Handles posts ans their comments'
+        style {
+          size small
+          textSize lg
+        }
+      }
+
+
+      db = storage 'PostgreSQL' {
+        style {
+          icon https://icons.terrastruct.com/dev%2Fpostgresql.svg
+          size small
+          textSize lg
+          shape storage
+        }
+      }
+    }
+  }
+}
+
+views {
+
+  view index {
+    title 'System Context'
+    description 'Level 1 of the C4 model'
+
+    include user
+    include sn with {
+      navigateTo container
+    }
+    style user {
+      shape person
+    }
+    style sn {
+      shape rectangle
+    }
+  }
+  view container {
+    title 'Container Diagram'
+    description 'Level 2 of the C4 model'
+    include *
+
+    style user {
+      color muted
+    }
+    include sn.**
+    style sn.stats_srv.db {
+      color gray
+    }
+    style sn.users_srv.db {
+      color gray
+      shape storage
+    }
+    style sn.posts_srv.db {
+      color gray
+    }
+    style sn.users_srv.api {
+      color green
+    }
+    style sn.stats_srv.api {
+      color green
+    }
+    style sn.posts_srv.api {
+      color green
+    }
+  }
+}
