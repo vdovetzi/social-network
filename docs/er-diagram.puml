@@ -16,6 +16,7 @@ entity UserProfile {
     user_id : UUID [FK]
     first_name : VARCHAR(50)
     last_name : VARCHAR(50)
+    phone_number VARCHAR(20)
     birthdate : DATE
     bio : TEXT
 }
@@ -35,7 +36,6 @@ entity Session {
     user_id : UUID [FK]
     token : TEXT
     created_at : TIMESTAMP
-    expires_at : TIMESTAMP
 }
 
 User ||--o{ UserProfile : has
