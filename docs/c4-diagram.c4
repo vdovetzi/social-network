@@ -35,7 +35,7 @@ model {
 
     users_srv.api -> users_srv.db
 
-    api_gw -> stats_srv.api
+    api_gw -> stats_srv.api 'network'
 
     stats_srv.api -> stats_srv.db
 
@@ -76,6 +76,7 @@ model {
         shape queue
         size xs
         textSize medium
+        color slate
       }
     }
 

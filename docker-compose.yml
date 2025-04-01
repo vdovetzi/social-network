@@ -18,6 +18,23 @@ services:
       timeout: 5s
       retries: 5
 
+
+
+  gateway_api:
+    build:
+      context: services/gateway
+    env_file:
+      - .env
+    depends_on:
+      auth:
+          condition: service_healthy
+      posts:
+          condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./services/gateway:/gateway
+
   auth:
     build: 
         context: services/users
@@ -35,19 +52,17 @@ services:
       interval: 5s
       retries: 5
       timeout: 3s
-
-  gateway_api:
+  
+  posts:
     build:
-      context: services/gateway
-    env_file:
-      - .env
-    depends_on:
-      auth:
-          condition: service_healthy
+      context: services/posts/service
+      dockerfile: server.dockerfile
     ports:
-      - "5000:5000"
-    volumes:
-      - ./services/gateway:/gateway
+      - "8091:8091"
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 5s
+
   tests:
     build:
         context: services/tests
