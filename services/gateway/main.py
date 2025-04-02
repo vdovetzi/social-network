@@ -44,8 +44,6 @@ def proxy_users(path):
     except requests.RequestException as e:
         logging.error(f"Request failed: {e}")
         return jsonify({"error": "Failed to connect to User Service API"}), 500
-    
-
 
 ###############################################################################################################
 
@@ -60,7 +58,7 @@ def check_auth(user_id, request):
             if sessions and len(sessions) > 0:
                 logging.debug(f"Valid session found for user {user_id}")
                 return True
-            
+
         logging.warning(f"No active sessions found for user {user_id}")
         return False
 
@@ -90,6 +88,18 @@ def get_username_from_token(request):
         logging.error(f"Unexpected token decoding error: {str(e)}")
         return None
 
+def post_to_dict(post):
+    return {
+        'id': post.id,
+        'title': post.title,
+        'description': post.description,
+        'creator_id': post.creator_id,
+        'created_at': post.created_at.ToDatetime(),
+        'updated_at': post.updated_at.ToDatetime(),
+        'is_private': post.is_private,
+        'tags': list(post.tags)
+    }
+
 @app.route("/posts/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
 def proxy_posts(path):
     try:
@@ -101,19 +111,24 @@ def proxy_posts(path):
             if path.split("posts/")[1] != "list":
                 post = pc.get_post(post_id=path.split("posts/")[1], user_id=username)
                 logging.info(f"Get Post: {post}")
-                # Check if post is private and user is not the creator
-                if post['is_private'] and post['creator_id'] != request['user_id']:
+
+                if post.is_private and post.creator_id != username:
                     return jsonify({"error": "You are not allows to view this post"}), 403
-                return jsonify(post)
+                return jsonify(post_to_dict(post))
             else:
                 page = request.args.get('page', 1, type=int)
                 per_page = request.args.get('per_page', 10, type=int)
                 posts = pc.list_posts(page=page, per_page=per_page, user_id=username)
-                return jsonify([{
-                    "id": p.id,
-                    "title": p.title,
-                    "creator_id": p.creator_id
-                } for p in posts])
+                logging.info(f"{posts}")
+                return jsonify({"posts": [{
+                    "id": p['id'],
+                    "title": p['title'],
+                    "creator_id": p['creator_id']
+                } for p in posts['posts']],
+                    "total": posts['total'],
+                    "page": posts['page'],
+                    "per_page": posts['per_page']
+                })
 
         elif request.method == "POST":
             data = request.get_json()
@@ -125,13 +140,19 @@ def proxy_posts(path):
                 "tags":data.get('tags', [])
                 }
             )
-            logging.info(f"{new_post}")
+            logging.info(f"Created Post ID: {new_post['id']}")
             return jsonify(new_post), 201
 
         elif request.method == "PUT":
             data = request.get_json()
+
+            post = pc.get_post(post_id=path.split("posts/")[1], user_id=username)
+
+            if post.creator_id != username:
+                return jsonify({"error": "You are not allowed to update this post"}), 403
+
             updated_post = pc.update_post(
-                post_id=int(path),data={
+                post_id=path.split("posts/")[1],data={
                 "title":data.get('title'),
                 "description": data.get('description'),
                 "updater_id":username,
@@ -139,14 +160,16 @@ def proxy_posts(path):
                 "tags":data.get('tags', [])
                 }
             )
-            return jsonify({"status": "success", "post_id": updated_post.id})
-
+            return jsonify(post_to_dict(updated_post))
         elif request.method == "DELETE":
             deleter_id = request.args.get('deleter_id', '')
-            success = pc.delete_post(post_id=int(path), deleter_id=deleter_id)
+            post_id =  path.split("posts/")[1]
+            logging.info(f"Deleting Post with ID: {post_id}")
+            success = pc.delete_post(post_id=post_id, deleter_id=deleter_id)
             return jsonify({"status": "success" if success else "failed"}), 200 if success else 403
-
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logging.error(f"Posts service error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 

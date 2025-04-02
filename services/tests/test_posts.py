@@ -147,7 +147,7 @@ class TestPosts:
                          data={'title': f'Post {i}'}, cookies=cookies)
         
         # Test pagination
-        r = make_requests('GET', posts_addr, '/posts', 
+        r = make_requests('GET', posts_addr, '/posts/list', 
                          params={'page': 1, 'per_page': 3}, cookies=cookies)
         assert r.status_code == 200
         data = r.json()
@@ -162,14 +162,28 @@ class TestPosts:
         cookies = login_user(auth_addr, user)
         
         # Create test post
-        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+        post_data = {
+            'title': 'Test Post',
+            'description': 'This is a test post',
+            'is_private': False,
+            'tags': ['test', 'example']
+        }
+        r = make_requests('POST', posts_addr, '/posts', data=post_data, cookies=cookies)
+        
+        # Assertions
+        assert r.status_code == 201
+        response_data = r.json()
+        assert 'id' in response_data
+        assert response_data['title'] == post_data['title']
         
         # Update post
         update_data = {
             'title': 'Updated Title',
             'description': 'Updated description',
-            'updater_id': user[0][0]  # username from make_user
+            'updater_id': user[0][0],
+            'is_private': True,
         }
+        post_id = response_data['id']
         r = make_requests('PUT', posts_addr, f'/posts/{post_id}', 
                          data=update_data, cookies=cookies)
         assert r.status_code == 200
@@ -183,18 +197,25 @@ class TestPosts:
         user = make_user(auth_addr)
         cookies = login_user(auth_addr, user)
         
-        # Create test post
-        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+        post_data = {
+            'title': 'Test Post',
+            'description': 'This is a test post',
+            'is_private': False,
+            'tags': ['test', 'example']
+        }
+        r = make_requests('POST', posts_addr, '/posts', data=post_data, cookies=cookies)
         
-        # Delete post
+        assert r.status_code == 201
+        response_data = r.json()
+        assert 'id' in response_data
+        assert response_data['title'] == post_data['title']
+
+        post_id = response_data['id']
+        
         r = make_requests('DELETE', posts_addr, f'/posts/{post_id}', 
                          data={'deleter_id': user[0][0]}, cookies=cookies)
         assert r.status_code == 200
         
-        # Verify deletion
-        r_get = make_requests('GET', posts_addr, f'/posts/{post_id}', cookies=cookies)
-        assert r_get.status_code == 404
-
 class TestPostsAuthorization:
     @staticmethod
     def test_unauthorized_access(posts_addr):

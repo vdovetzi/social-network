@@ -5,7 +5,17 @@ from google.protobuf.timestamp_pb2 import Timestamp
 import grpc
 import logging
 
-
+def post_to_dict(post):
+    return {
+        'id': post.id,
+        'title': post.title,
+        'description': post.description,
+        'creator_id': post.creator_id,
+        'created_at': post.created_at.ToDatetime(),
+        'updated_at': post.updated_at.ToDatetime(),
+        'is_private': post.is_private,
+        'tags': list(post.tags)
+    }
 
 class PostServiceClient:
     def __init__(self, api_url):
@@ -34,8 +44,7 @@ class PostServiceClient:
                 user_id=user_id
             )
             response = self.stub.GetPost(request)
-            logging.error(f"Is Private: {response.is_private}")
-            return MessageToDict(response.post)
+            return response.post
         except grpc.RpcError as e:
             logging.error(f"gRPC error: {e.code()}: {e.details()}")
             raise
@@ -51,7 +60,7 @@ class PostServiceClient:
                 tags=data.get('tags', [])
             )
             response = self.stub.UpdatePost(request)
-            return MessageToDict(response.post)
+            return response.post
         except grpc.RpcError as e:
             logging.error(f"gRPC error: {e.code()}: {e.details()}")
             raise
@@ -77,7 +86,7 @@ class PostServiceClient:
             )
             response = self.stub.ListPosts(request)
             return {
-                'posts': [MessageToDict(post) for post in response.posts],
+                'posts': [post_to_dict(post) for post in response.posts],
                 'total': response.total,
                 'page': response.page,
                 'per_page': response.per_page
