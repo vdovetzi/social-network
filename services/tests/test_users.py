@@ -303,11 +303,6 @@ class TestProfile:
         ((_, _), cookies) = user
         r = requests.put(f"{auth_addr}/profile", json={"kitty": "yes"}, cookies=cookies)
         assert r.status_code == 400
-        
-import json
-import uuid
-import requests
-import pytest
 
 def make_requests(method, addr, handle, params=None, data=None, cookies=None):
     if data is not None:

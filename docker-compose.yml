@@ -11,12 +11,52 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_users:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - users_network
+
+  posts_db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata_posts:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DATABASE_USER}", "-d", "${DATABASE_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - posts_network
+
+  gateway_api:
+    build:
+      context: services/gateway
+    env_file:
+      - .env
+    depends_on:
+      auth:
+          condition: service_healthy
+      posts:
+          condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./services/gateway:/gateway
+    networks:
+      - proxy_network
+      - users_network
+      - posts_network
 
   auth:
     build: 
@@ -35,19 +75,28 @@ services:
       interval: 5s
       retries: 5
       timeout: 3s
-
-  gateway_api:
+    networks:
+      - proxy_network
+      - users_network
+  
+  posts:
     build:
-      context: services/gateway
+      context: services/posts/service
+      dockerfile: server.dockerfile
+    depends_on:
+      posts_db:
+        condition: service_healthy
     env_file:
       - .env
-    depends_on:
-      auth:
-          condition: service_healthy
     ports:
-      - "5000:5000"
-    volumes:
-      - ./services/gateway:/gateway
+      - "8091:8091"
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 5s
+    networks:
+      - proxy_network
+      - posts_network
+
   tests:
     build:
         context: services/tests
@@ -57,6 +106,18 @@ services:
       - gateway_api
     volumes:
       - ./services/tests:/tests
+    networks:
+      - proxy_network
+
+
+networks:
+  posts_network:
+    driver: bridge
+  users_network:
+    driver: bridge
+  proxy_network:
+    driver: bridge
 
 volumes:
-  pgdata:
+  pgdata_users:
+  pgdata_posts:
