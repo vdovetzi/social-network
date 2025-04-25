@@ -10,8 +10,11 @@ from sqlalchemy import create_engine, Column, String, Boolean, Text, DateTime, A
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
-
+import psycopg2
 from dotenv import load_dotenv
+from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
+
 
 load_dotenv()
 
@@ -32,10 +35,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-import psycopg2
-from sqlalchemy import create_engine
-from sqlalchemy.exc import OperationalError
-from sqlalchemy import text
 
 def ensure_database_exists():
     try:

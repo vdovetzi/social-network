@@ -19,7 +19,7 @@ def post_to_dict(post):
 
 class PostServiceClient:
     def __init__(self, api_url):
-        self.channel = grpc.insecure_channel(api_url, options=(('grpc.enable_http_proxy', 0), ('grpc.client_timeout', 5000)))
+        self.channel = grpc.insecure_channel(api_url, options=(('grpc.enable_http_proxy', 1), ('grpc.client_timeout', 5000)))
         self.stub = service_pb2_grpc.PostServiceStub(self.channel)
     
     def create_post(self, data):
