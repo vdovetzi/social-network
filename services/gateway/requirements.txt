@@ -8,3 +8,4 @@ grpcio-tools==1.71.0
 protobuf>5
 googleapis-common-protos==1.69.2
 PyJWT==2.8.0
+kafka-python>=2.0.2

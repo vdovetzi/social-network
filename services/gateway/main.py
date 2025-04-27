@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from posts_client import PostServiceClient
 import jwt
-import time
+from kafka_producer import send_like_event, send_view_event, send_comment_event
 
 load_dotenv()
 
@@ -114,12 +114,19 @@ def proxy_posts(path):
 
                 if post.is_private and post.creator_id != username:
                     return jsonify({"error": "You are not allows to view this post"}), 403
+                
+                send_view_event(username, str(post.id))
+                
                 return jsonify(post_to_dict(post))
             else:
                 page = request.args.get('page', 1, type=int)
                 per_page = request.args.get('per_page', 10, type=int)
                 posts = pc.list_posts(page=page, per_page=per_page, user_id=username)
                 logging.info(f"{posts}")
+
+                for post in posts['posts']:
+                    send_view_event(username, str(post['id']))
+
                 return jsonify({"posts": [{
                     "id": p['id'],
                     "title": p['title'],
@@ -172,6 +179,32 @@ def proxy_posts(path):
         traceback.print_exc()
         logging.error(f"Posts service error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/posts/<post_id>/like", methods=["POST"])
+def like_post(post_id):
+    username = get_username_from_token(request)
+    if not username or not check_auth(username, request):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        send_like_event(username, str(post_id))
+        return jsonify({"success": "Liked"}), 200
+    except Exception as e:
+        logging.error(f"Like request failed: {e}")
+        return jsonify({"error": "Like failed"}), 500
+
+@app.route("/posts/<post_id>/comment", methods=["GET", "POST"])
+def comment_post(post_id):
+    username = get_username_from_token(request)
+    if not username or not check_auth(username, request):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    comment_text = data.get('text')
+    try:
+        send_comment_event(username, str(post_id), str("comment_id"))
+        return jsonify({"success": "Comment"}), 200
+    except Exception as e:
+        logging.error(f"Comment request failed: {e}")
+        return jsonify({"error": "Comment failed"}), 500
 
 @app.route("/stats/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
 def proxy_stats(path):
