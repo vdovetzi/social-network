@@ -148,6 +148,8 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_HOSTNAME: kafka
     networks:
       - kafka_network
     healthcheck:
@@ -164,21 +166,13 @@ services:
     command: >
       bash -c "
         cub kafka-ready -b kafka:29092 1 30 &&
-        kafka-topics --create --if-not-exists --topic registration_events --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 &&
-        kafka-topics --create --if-not-exists --topic like_click_events --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 &&
-        kafka-topics --create --if-not-exists --topic view_events --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 &&
-        kafka-topics --create --if-not-exists --topic comment_events --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1
+        kafka-topics --create --if-not-exists --topic client_registrations --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --topic posts_likes --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --topic posts_views --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --topic posts_comments --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1
       "
     networks:
       - kafka_network
-
-  kafka-ui:
-    container_name: kafka-ui
-    image: provectuslabs/kafka-ui:latest
-    ports:
-      - 8082:8080
-    environment:
-      DYNAMIC_CONFIG_ENABLED: true
 
 
 networks:

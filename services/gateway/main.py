@@ -69,6 +69,15 @@ def check_auth(user_id, request):
         logging.error(f"Invalid response from auth service: {str(e)}")
         return False
 
+def check_post_exists(user_id, post_id):
+    try:
+        post = pc.get_post(post_id=post_id, user_id=user_id)
+        if post.is_private and post.creator_id != user_id:
+                return False
+        return True
+    except:
+        return False
+
 def get_username_from_token(request):
     token = request.cookies.get('jwt')
     if not token:
@@ -138,17 +147,40 @@ def proxy_posts(path):
                 })
 
         elif request.method == "POST":
-            data = request.get_json()
-            new_post = pc.create_post({
-                "title":data['title'],
-                "description":data.get('description', ''),
-                "creator_id": username,
-                "is_private": data.get('is_private', False),
-                "tags":data.get('tags', [])
-                }
-            )
-            logging.info(f"Created Post ID: {new_post['id']}")
-            return jsonify(new_post), 201
+            if path.split('/')[-1] == "like":
+                try:
+                    post_id = path.split('/')[-2]
+                    if not check_post_exists(username, post_id):
+                        return jsonify({"error": "Post does not exist"}), 500
+                    send_like_event(username, str(post_id))
+                    return jsonify({"success": "Liked"}), 200
+                except Exception as e:
+                    logging.error(f"Like request failed: {e}")
+                    return jsonify({"error": "Like failed"}), 500
+            elif path.split('/')[-1] == "comment":
+                data = request.get_json()
+                comment_text = data.get('text')
+                post_id = path.split('/')[-2]
+                try:
+                    if not check_post_exists(username, post_id):
+                        return jsonify({"error": "Post does not exist"}), 500
+                    send_comment_event(username, str(post_id), str("comment_id"))
+                    return jsonify({"success": "Comment"}), 200
+                except Exception as e:
+                    logging.error(f"Comment request failed: {e}")
+                    return jsonify({"error": "Comment failed"}), 500
+            else:
+                data = request.get_json()
+                new_post = pc.create_post({
+                    "title":data['title'],
+                    "description":data.get('description', ''),
+                    "creator_id": username,
+                    "is_private": data.get('is_private', False),
+                    "tags":data.get('tags', [])
+                    }
+                )
+                logging.info(f"Created Post ID: {new_post['id']}")
+                return jsonify(new_post), 201
 
         elif request.method == "PUT":
             data = request.get_json()
@@ -180,31 +212,6 @@ def proxy_posts(path):
         logging.error(f"Posts service error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/posts/<post_id>/like", methods=["POST"])
-def like_post(post_id):
-    username = get_username_from_token(request)
-    if not username or not check_auth(username, request):
-        return jsonify({"error": "Unauthorized"}), 401
-    try:
-        send_like_event(username, str(post_id))
-        return jsonify({"success": "Liked"}), 200
-    except Exception as e:
-        logging.error(f"Like request failed: {e}")
-        return jsonify({"error": "Like failed"}), 500
-
-@app.route("/posts/<post_id>/comment", methods=["GET", "POST"])
-def comment_post(post_id):
-    username = get_username_from_token(request)
-    if not username or not check_auth(username, request):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
-    comment_text = data.get('text')
-    try:
-        send_comment_event(username, str(post_id), str("comment_id"))
-        return jsonify({"success": "Comment"}), 200
-    except Exception as e:
-        logging.error(f"Comment request failed: {e}")
-        return jsonify({"error": "Comment failed"}), 500
 
 @app.route("/stats/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
 def proxy_stats(path):

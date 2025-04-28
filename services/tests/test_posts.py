@@ -219,7 +219,6 @@ class TestPosts:
 class TestPostsAuthorization:
     @staticmethod
     def test_unauthorized_access(posts_addr):
-        # Try to access endpoints without auth
         r_create = make_requests('POST', posts_addr, '/posts', 
                                 data={'title': 'Unauthorized'})
         assert r_create.status_code == 401
@@ -240,3 +239,60 @@ class TestPostsAuthorization:
         r = make_requests('PUT', posts_addr, f'/posts/{post_id}', 
                          data={'title': 'Hacked'}, cookies=cookies2)
         assert r.status_code == 403
+
+class TestPostsLikes:
+    @staticmethod
+    def test_like_post(posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+        
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+
+        logging.fatal(f"{post_id}")
+
+        r_like = make_requests('POST', posts_addr, f'/posts/{str(post_id)}/like', 
+                             cookies=cookies)
+        assert r_like.status_code == 200
+        assert r_like.json() == {"success": "Liked"}
+    
+    @staticmethod
+    def test_unauthorized_like(posts_addr):
+        r_like = make_requests('POST', posts_addr, '/posts/123/like')
+        assert r_like.status_code == 401
+    
+    @staticmethod
+    def test_like_nonexistent_post(posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+        
+        r_like = make_requests('POST', posts_addr, '/posts/999999/like', 
+                             cookies=cookies)
+        assert r_like.status_code in [404, 500]
+
+class TestPostsComments:
+    @staticmethod
+    def test_comment_post(posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+        
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+        
+        r_comment = make_requests('POST', posts_addr, f'/posts/{post_id}/comment',
+                                data={'text': 'Test comment'}, cookies=cookies)
+        assert r_comment.status_code == 200
+        assert r_comment.json() == {"success": "Comment"}
+    
+    @staticmethod
+    def test_unauthorized_comment(posts_addr):
+        r_comment = make_requests('POST', posts_addr, '/posts/123/comment',
+                                data={'text': 'Test comment'})
+        assert r_comment.status_code == 401
+    
+    @staticmethod
+    def test_comment_nonexistent_post(posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+        
+        r_comment = make_requests('POST', posts_addr, '/posts/999999/comment',
+                                data={'text': 'Test comment'}, cookies=cookies)
+        assert r_comment.status_code in [404, 500]
