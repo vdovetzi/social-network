@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from marshmallow import Schema, fields, ValidationError
 import logging
 from email_validator import validate_email, EmailNotValidError
+from kafka_producer import send_client_registration
+
 
 load_dotenv()
 
@@ -118,6 +120,8 @@ def signup():
         conn.close()
     except psycopg2.IntegrityError:
         return make_response("User already exists", 403)
+    
+    send_client_registration(username)
 
     token = jwt.encode({'username': username, 'iat': datetime.datetime.utcnow()}, private_key, algorithm='RS256')
     response = make_response("", 200)

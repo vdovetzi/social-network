@@ -449,3 +449,98 @@ components:
           description: Post deleted
         '403':
           description: Not authorized to delete this post
+
+/posts/{post_id}/like:
+    post:
+      summary: Лайк поста
+      description: |
+        Пользователь ставит «лайк» указанному посту.  
+        Требует, чтобы пользователь был авторизован (JWT-cookie + сессия в Auth).
+      tags:
+        - Posts
+      parameters:
+        - name: post_id
+          in: path
+          description: Идентификатор поста
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Успешный лайк
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    example: Liked
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Ошибка сервиса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+/posts/{post_id}/comment:
+    post:
+      summary: Добавление комментария к посту
+      description: |
+        Пользователь комментирует указанный пост.  
+        В теле запроса передаётся JSON:
+        ```json
+        { "text": "Ваш комментарий" }
+        ```
+        Требует авторизации (JWT-cookie + сессия в Auth).
+      tags:
+        - Posts
+      parameters:
+        - name: post_id
+          in: path
+          description: Идентификатор поста
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Текст комментария
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  example: "Отличная статья!"
+      responses:
+        '200':
+          description: Комментарий успешно отправлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    example: Comment
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Ошибка сервиса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

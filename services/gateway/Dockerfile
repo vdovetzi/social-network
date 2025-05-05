@@ -1,10 +1,12 @@
 FROM python:3.9
 
-WORKDIR /gateway
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY services/gateway/requirements.txt .
 
-COPY . .
+COPY services/broker/kafka_producer.py .
+
+RUN pip install -r requirements.txt
+
+COPY services/gateway/ .
 
 ENTRYPOINT ["python", "main.py"]

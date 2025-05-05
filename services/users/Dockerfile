@@ -1,10 +1,13 @@
 FROM python:3.9
 
-WORKDIR /users
+COPY services/users/requirements.txt .
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
-COPY . .
+COPY services/users .
 
-ENTRYPOINT ["python", "main.py"]
+COPY services/broker/kafka_producer.py .
+
+RUN chmod +x kafka_producer.py
+
+ENTRYPOINT ["python3", "main.py"]
