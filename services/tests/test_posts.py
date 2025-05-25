@@ -254,6 +254,7 @@ class TestPostsLikes:
                              cookies=cookies)
         assert r_like.status_code == 200
         assert r_like.json() == {"success": "Liked"}
+        return post_id
     
     @staticmethod
     def test_unauthorized_like(posts_addr):
@@ -281,6 +282,7 @@ class TestPostsComments:
                                 data={'text': 'Test comment'}, cookies=cookies)
         assert r_comment.status_code == 200
         assert r_comment.json() == {"success": "Comment"}
+        return post_id
     
     @staticmethod
     def test_unauthorized_comment(posts_addr):
