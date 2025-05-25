@@ -42,7 +42,7 @@ message TopRequest {
 }
 
 message TopPost {
-    uint64 post_id = 1;
+    string post_id = 1;
     uint64 count = 2;
 }
 
@@ -51,7 +51,7 @@ message TopPostsResponse {
 }
 
 message TopUser {
-    uint64 user_id = 1;
+    string user_id = 1;
     uint64 count = 2;
 }
 

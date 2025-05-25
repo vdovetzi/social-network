@@ -7,28 +7,39 @@ import threading
 import statistics_pb2
 import statistics_pb2_grpc
 import os
+import logging
+import time
+from datetime import datetime
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(threadName)s %(message)s'
+)
+
+client = clickhouse_driver.Client(
+        host='clickhouse',
+        user=os.getenv("CLICKHOUSE_USER"),
+        port=9000,
+        password=os.getenv("CLICKHOUSE_PASSWORD")
+)
 
 
 class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
     def __init__(self):
-        self.client = clickhouse_driver.Client(
-            host='clickhouse',
-            user=os.getenv("CLICKHOUSE_USER"),
-            password=os.getenv("CLICKHOUSE_PASSWORD")
-        )
+        pass
 
     def GetPostStats(self, request, context):
-        views = self.client.execute(
+        views = client.execute(
             "SELECT count() FROM statistics.post_views WHERE post_id = %(post_id)s",
             {'post_id': request.post_id}
         )[0][0]
 
-        likes = self.client.execute(
+        likes = client.execute(
             "SELECT count() FROM statistics.post_likes WHERE post_id = %(post_id)s AND is_like = 1",
             {'post_id': request.post_id}
         )[0][0]
 
-        comments = self.client.execute(
+        comments = client.execute(
             "SELECT count() FROM statistics.post_comments WHERE post_id = %(post_id)s",
             {'post_id': request.post_id}
         )[0][0]
@@ -40,7 +51,7 @@ class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
         )
 
     def GetViewsDynamic(self, request, context):
-        data = self.client.execute(
+        data = client.execute(
             """
             SELECT toDate(view_date) as day, count() as views
             FROM statistics.post_views
@@ -51,11 +62,11 @@ class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
             {'post_id': request.post_id}
         )
         return statistics_pb2.DynamicResponse(
-            data=[statistics_pb2.DynamicData(date=str(day), count=count) for day, count in data]
+            data=[statistics_pb2.DynamicData(date=str(day), count=int(count)) for day, count in data]
         )
 
     def GetLikesDynamic(self, request, context):
-        data = self.client.execute(
+        data = client.execute(
             """
             SELECT toDate(like_date) as day, count() as likes
             FROM statistics.post_likes
@@ -66,11 +77,11 @@ class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
             {'post_id': request.post_id}
         )
         return statistics_pb2.DynamicResponse(
-            data=[statistics_pb2.DynamicData(date=str(day), count=count) for day, count in data]
+            data=[statistics_pb2.DynamicData(date=str(day), count=int(count)) for day, count in data]
         )
 
     def GetCommentsDynamic(self, request, context):
-        data = self.client.execute(
+        data = client.execute(
             """
             SELECT toDate(comment_date) as day, count() as comments
             FROM statistics.post_comments
@@ -81,7 +92,7 @@ class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
             {'post_id': request.post_id}
         )
         return statistics_pb2.DynamicResponse(
-            data=[statistics_pb2.DynamicData(date=str(day), count=count) for day, count in data]
+            data=[statistics_pb2.DynamicData(date=str(day), count=int(count)) for day, count in data]
         )
 
     def GetTopPosts(self, request, context):
@@ -111,9 +122,12 @@ class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
                 LIMIT 10
             """
 
-        data = self.client.execute(query)
+        data = client.execute(query)
         return statistics_pb2.TopPostsResponse(
-            posts=[statistics_pb2.TopPost(post_id=post_id, count=count) for post_id, count in data]
+            posts = [
+                statistics_pb2.TopPost(post_id=str(post_id), count=int(count))
+                for post_id, count in data
+            ]
         )
 
     def GetTopUsers(self, request, context):
@@ -143,62 +157,81 @@ class StatisticsService(statistics_pb2_grpc.StatisticsServiceServicer):
                 LIMIT 10
             """
 
-        data = self.client.execute(query)
+        data = client.execute(query)
         return statistics_pb2.TopUsersResponse(
-            users=[statistics_pb2.TopUser(user_id=user_id, count=count) for user_id, count in data]
+            users =[
+                statistics_pb2.TopUser(user_id=str(user_id), count=int(count))
+                for user_id, count in data
+            ]           
         )
 
 
-def consume_kafka_messages():
+topics_groups = {
+    'posts_views': 'views-group',
+    'posts_likes': 'likes-group',
+    'posts_comments': 'comments-group',
+}
+
+def consume_topic(topic, group_id, client):
     consumer = KafkaConsumer(
-        'posts_views',
-        'posts_likes',
-        'posts_comments',
+        topic,
         bootstrap_servers='kafka:29092',
-        group_id='statistics-group',
+        group_id=group_id,
         auto_offset_reset='earliest',
+        enable_auto_commit=True,
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
 
-    client = clickhouse_driver.Client(host='clickhouse')
+    logging.info(f"Started consumer for topic: {topic}, group: {group_id}")
 
-    for message in consumer:
+    while True:
         try:
-            data = message.value
-            if message.topic == 'posts_views':
-                client.execute(
-                    "INSERT INTO statistics.post_views (post_id, user_id, view_date, view_time) VALUES",
-                    [{
-                        'post_id': data['entity_id'],
-                        'user_id': data['client_id'],
-                        'view_date': data['timestamp'][:10],
-                        'view_time': data['timestamp']
-                    }]
-                )
-            elif message.topic == 'posts_likes':
-                client.execute(
-                    "INSERT INTO statistics.post_likes (post_id, user_id, like_date, like_time, is_like) VALUES",
-                    [{
-                        'post_id': data['entity_id'],
-                        'user_id': data['client_id'],
-                        'like_date': data['timestamp'][:10],
-                        'like_time': data['timestamp'],
-                        'is_like': data.get('is_like', 1)
-                    }]
-                )
-            elif message.topic == 'posts_comments':
-                client.execute(
-                    "INSERT INTO statistics.post_comments (post_id, user_id, comment_id, comment_date, comment_time) VALUES",
-                    [{
-                        'post_id': data['post_id'],
-                        'user_id': data['client_id'],
-                        'comment_id': data['comment_id'],
-                        'comment_date': data['timestamp'][:10],
-                        'comment_time': data['timestamp']
-                    }]
-                )
+            for message in consumer:
+                data = message.value
+                logging.info(f"[{topic}] Consumed: {data}")
+
+                timestamp_str = data['timestamp'].replace('Z', '')
+                timestamp = datetime.fromisoformat(timestamp_str)
+
+                if topic == 'posts_views':
+                    client.execute(
+                        "INSERT INTO statistics.post_views (post_id, user_id, view_date, view_time) VALUES",
+                        [{
+                            'post_id': data['entity_id'],
+                            'user_id': data['client_id'],
+                            'view_date': timestamp.date(),
+                            'view_time': timestamp
+                        }]
+                    )
+                elif topic == 'posts_likes':
+                    client.execute(
+                        "INSERT INTO statistics.post_likes (post_id, user_id, like_date, like_time, is_like) VALUES",
+                        [{
+                            'post_id': data['entity_id'],
+                            'user_id': data['client_id'],
+                            'like_date': timestamp.date(),
+                            'like_time': timestamp,
+                            'is_like': data.get('is_like', 1)
+                        }]
+                    )
+                elif topic == 'posts_comments':
+                    client.execute(
+                        "INSERT INTO statistics.post_comments (post_id, user_id, comment_id, comment_date, comment_time) VALUES",
+                        [{
+                            'post_id': data['post_id'],
+                            'user_id': data['client_id'],
+                            'comment_id': data['comment_id'],
+                            'comment_date': timestamp.date(),
+                            'comment_time': timestamp
+                        }]
+                    )
         except Exception as e:
-            print(f"Error processing Kafka message: {e}")
+            logging.error(f"Error in topic {topic} consumer: {e}")
+
+def consume_kafka_messages():
+    for topic, group in topics_groups.items():
+        t = threading.Thread(target=consume_topic, args=(topic, group, client), daemon=True)
+        t.start()
 
 
 def serve():
@@ -208,7 +241,10 @@ def serve():
     server.add_insecure_port('[::]:8092')
     server.start()
 
-    threading.Thread(target=consume_kafka_messages, daemon=True).start()
+    logging.info("Starting Kafka consumer thread...")
+    
+    consume_kafka_messages()
+    
     server.wait_for_termination()
 
 

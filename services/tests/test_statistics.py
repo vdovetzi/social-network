@@ -115,6 +115,6 @@ class TestStatistics:
         r2 = make_requests("GET", stats_addr, f"/overview?post_id={post_id}", cookies=cookies)
         stats_after = r2.json()
 
-        # assert stats_after["likes_count"] > stats_before["likes_count"]
-        # assert stats_after["views_count"] > stats_before["views_count"]
-        # assert stats_after["comments_count"] > stats_before["comments_count"]
+        assert stats_after["likes_count"] > stats_before["likes_count"]
+        assert stats_after["views_count"] > stats_before["views_count"]
+        assert stats_after["comments_count"] > stats_before["comments_count"]

@@ -24,7 +24,7 @@ public_key = os.getenv("PUBLIC_KEY")
 pc = PostServiceClient(POSTS_API_URL)
 sc = StatisticsClient(STATS_API_URL)
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 
 @app.route("/users/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
 def proxy_users(path):
@@ -168,7 +168,7 @@ def proxy_posts(path):
                 try:
                     if not check_post_exists(username, post_id):
                         return jsonify({"error": "Post does not exist"}), 500
-                    send_comment_event(username, str(post_id), uuid.uuid4())
+                    send_comment_event(username, str(post_id), str(uuid.uuid4()))
                     return jsonify({"success": "Comment"}), 200
                 except Exception as e:
                     logging.error(f"Comment request failed: {e}")
