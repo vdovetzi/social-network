@@ -4,8 +4,11 @@ import logging
 import os
 from dotenv import load_dotenv
 from posts_client import PostServiceClient
+from stats_client import StatisticsClient, statistics_pb2
 import jwt
 from kafka_producer import send_like_event, send_view_event, send_comment_event
+import grpc
+import uuid
 
 load_dotenv()
 
@@ -13,14 +16,15 @@ app = Flask(__name__)
 
 USERS_API_URL = os.environ.get('USERS_API_URL', 'http://auth:8090')
 POSTS_API_URL = os.environ.get('POSTS_API_URL',  'posts:8091')
-STATS_API_URL = os.environ.get('STATS_API_URL',   'http://stats:8092')
+STATS_API_URL = os.environ.get('STATS_API_URL',   'statistics:8092')
 
 private_key = os.getenv("PRIVATE_KEY")
 public_key = os.getenv("PUBLIC_KEY")
 
 pc = PostServiceClient(POSTS_API_URL)
+sc = StatisticsClient(STATS_API_URL)
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 
 @app.route("/users/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
 def proxy_users(path):
@@ -164,7 +168,7 @@ def proxy_posts(path):
                 try:
                     if not check_post_exists(username, post_id):
                         return jsonify({"error": "Post does not exist"}), 500
-                    send_comment_event(username, str(post_id), str("comment_id"))
+                    send_comment_event(username, str(post_id), str(uuid.uuid4()))
                     return jsonify({"success": "Comment"}), 200
                 except Exception as e:
                     logging.error(f"Comment request failed: {e}")
@@ -213,9 +217,83 @@ def proxy_posts(path):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/stats/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
+@app.route("/stats/<path:path>", methods=["GET"])
 def proxy_stats(path):
-    pass
+    try:
+        username = get_username_from_token(request)
+        logging.warning(f"HERE WITH {username} and {request}")
+        if not check_auth(username, request):
+            return jsonify({"error": "Unauthorized"}), 401
+        
+
+        segments = path.strip("/").split("/")
+
+        logging.error(f"{segments}")
+        
+        if len(segments) == 2 and segments[0] in ["post", "views", "likes", "comments"]:
+            post_id = segments[1]
+            if segments[0] == "post":
+                stats = sc.get_post_stats(post_id)
+                return jsonify({
+                    "post_id": post_id,
+                    "views": stats.views,
+                    "likes": stats.likes,
+                    "comments": stats.comments
+                })
+            elif segments[0] == "views":
+                res = sc.get_views_dynamic(post_id)
+                return jsonify({
+                    "post_id": post_id,
+                    "views": [{"date": d.date, "count": d.count} for d in res.data]
+                })
+            elif segments[0] == "likes":
+                res = sc.get_likes_dynamic(post_id)
+                return jsonify({
+                    "post_id": post_id,
+                    "likes": [{"date": d.date, "count": d.count} for d in res.data]
+                })
+            elif segments[0] == "comments":
+                res = sc.get_comments_dynamic(post_id)
+                return jsonify({
+                    "post_id": post_id,
+                    "comments": [{"date": d.date, "count": d.count} for d in res.data]
+                })
+
+        elif path == "top/posts":
+            metric = request.args.get("metric", "VIEWS").upper()
+            enum_val = statistics_pb2.Metric.Value(metric)
+            res = sc.get_top_posts(enum_val)
+            return jsonify({
+                "posts": [{"post_id": p.post_id, "count": p.count} for p in res.posts]
+            })
+
+        elif path == "top/users":
+            metric = request.args.get("metric", "LIKES").upper()
+            enum_val = statistics_pb2.Metric.Value(metric)
+            res = sc.get_top_users(enum_val)
+            return jsonify({
+                "users": [{"user_id": u.user_id, "count": u.count} for u in res.users]
+            })
+
+        elif path == "overview":
+            post_id = request.args.get("post_id")
+            if not post_id:
+                return jsonify({"error": "post_id is required"}), 400
+            return jsonify({
+                "views_count": len(sc.get_views_dynamic(post_id).data),
+                "likes_count": len(sc.get_likes_dynamic(post_id).data),
+                "comments_count": len(sc.get_comments_dynamic(post_id).data)
+            })
+
+        return jsonify({"error": "Unknown statistics path"}), 404
+
+    except grpc.RpcError as e:
+        logging.error(f"gRPC Stats error: {e.code()}: {e.details()}")
+        return jsonify({"error": "Failed to get stats"}), 500
+    except Exception as e:
+        logging.exception("Unexpected error")
+        return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == "__main__":

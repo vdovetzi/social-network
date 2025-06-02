@@ -52,6 +52,8 @@ services:
           condition: service_healthy
       kafka:
         condition: service_healthy
+      statistics:
+        condition: service_healthy
     ports:
       - "5000:5000"
     volumes:
@@ -173,6 +175,109 @@ services:
       "
     networks:
       - kafka_network
+  
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native TCP interface
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - kafka_network
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    env_file:
+      - .env
+    environment:
+      CLICKHOUSE_DB: statistics
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+
+  clickhouse-setup:
+    image: clickhouse/clickhouse-client:latest
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    entrypoint: ["bash", "-c"]
+    env_file:
+      - .env
+    command: >
+      "
+      until clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query 'SELECT 1'; do
+        echo 'Waiting for ClickHouse server...';
+        sleep 2;
+      done;
+
+      echo 'Creating database and tables...';
+
+      clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query \"
+        CREATE DATABASE IF NOT EXISTS statistics;
+      \";
+
+      clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query \"
+        CREATE TABLE IF NOT EXISTS statistics.post_views (
+          post_id UUID,
+          user_id UUID,
+          view_date Date,
+          view_time DateTime,
+          view_timestamp DateTime DEFAULT now()
+        ) ENGINE = MergeTree()
+        ORDER BY (post_id, view_date, view_time);
+      \";
+
+      clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query \"
+        CREATE TABLE IF NOT EXISTS statistics.post_likes (
+          post_id UUID,
+          user_id UUID,
+          like_date Date,
+          like_time DateTime,
+          like_timestamp DateTime DEFAULT now(),
+          is_like UInt8
+        ) ENGINE = MergeTree()
+        ORDER BY (post_id, like_date, like_time);
+      \";
+
+      clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query \"
+        CREATE TABLE IF NOT EXISTS statistics.post_comments (
+          post_id UUID,
+          user_id UUID,
+          comment_id UUID,
+          comment_date Date,
+          comment_time DateTime,
+          comment_timestamp DateTime DEFAULT now()
+        ) ENGINE = MergeTree()
+        ORDER BY (post_id, comment_date, comment_time);
+      \";
+
+      echo 'ClickHouse initialization complete.';
+      "
+    networks:
+      - kafka_network
+  
+  statistics:
+    build:
+      context: .
+      dockerfile: ./services/statistics/Dockerfile
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8092:8092"
+    volumes:
+      - ./services/statistics:/statistics
+    networks:
+      - kafka_network
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 5s
 
 
 networks:
@@ -188,3 +293,4 @@ networks:
 volumes:
   pgdata_users:
   pgdata_posts:
+  clickhouse_data:
