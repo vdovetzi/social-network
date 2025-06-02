@@ -3,3 +3,7 @@ requests==2.28.1
 PyJWT==2.6.0
 cryptography==38.0.4
 python-dotenv==1.0.1
+grpcio
+grpcio-tools
+protobuf
+kafka-python

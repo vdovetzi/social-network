@@ -112,7 +112,8 @@ services:
 
   tests:
     build:
-        context: services/tests
+        context: .
+        dockerfile: ./services/tests/Dockerfile
     env_file:
       - .env
     depends_on:
@@ -120,6 +121,10 @@ services:
       - kafka
     volumes:
       - ./services/tests:/tests
+      - ./services/posts:/tests/posts
+      - ./services/statistics/statistics_pb2_grpc.py:/tests/posts/service/proto/statistics_pb2_grpc.py
+      - ./services/statistics/statistics_pb2.py:/tests/posts/service/proto/statistics_pb2.py
+      - ./services/broker/kafka_producer.py:/tests/kafka_producer.py
     networks:
       - proxy_network
       - kafka_network
@@ -179,8 +184,8 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     ports:
-      - "8123:8123"   # HTTP interface
-      - "9000:9000"   # Native TCP interface
+      - "8123:8123"
+      - "9000:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     networks:
