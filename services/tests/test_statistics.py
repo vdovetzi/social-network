@@ -7,6 +7,10 @@ import os
 import urllib
 import time
 import socket
+import stats_client
+import logging
+from kafka_producer import send_like_event, send_view_event, send_comment_event
+from datetime import datetime
 
 @pytest.fixture
 def auth_addr():
@@ -118,3 +122,124 @@ class TestStatistics:
         assert stats_after["likes_count"] > stats_before["likes_count"]
         assert stats_after["views_count"] > stats_before["views_count"]
         assert stats_after["comments_count"] > stats_before["comments_count"]
+
+class TestStatisticsGRPC:
+    def test_comments_increment(self, posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+
+        sc = stats_client.StatisticsClient('statistics:8092')
+
+        r1 = sc.get_comments_dynamic(post_id)
+        stats_before = [{"date": d.date, "count": d.count} for d in r1.data]
+
+        r_comment = make_requests('POST', posts_addr, f'/posts/{post_id}/comment', data={'text': 'Test comment'}, cookies=cookies)
+        assert r_comment.status_code == 200
+        assert r_comment.json() == {"success": "Comment"}
+
+        time.sleep(2)
+
+        r2 = sc.get_comments_dynamic(post_id)
+
+        stats_after = [{"date": d.date, "count": d.count} for d in r2.data]
+
+        assert len(stats_after) > len(stats_before)
+    
+    def test_likes_increment(self, posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+
+        sc = stats_client.StatisticsClient('statistics:8092')
+
+        r1 = sc.get_likes_dynamic(post_id)
+        stats_before = [{"date": d.date, "count": d.count} for d in r1.data]
+
+        r_like = make_requests('POST', posts_addr, f'/posts/{str(post_id)}/like', 
+                             cookies=cookies)
+        assert r_like.status_code == 200
+        assert r_like.json() == {"success": "Liked"}
+
+        time.sleep(2)
+
+        r2 = sc.get_likes_dynamic(post_id)
+        stats_after =  [{"date": d.date, "count": d.count} for d in r2.data]
+
+        assert len(stats_after) > len(stats_before)
+    
+    def test_views_increment(self, posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+
+        sc = stats_client.StatisticsClient('statistics:8092')
+
+        r1 = sc.get_views_dynamic(post_id)
+        stats_before = [{"date": d.date, "count": d.count} for d in r1.data]
+
+        r = make_requests('GET', posts_addr, f'/posts/{post_id}', cookies=cookies)
+        assert r.status_code == 200
+        assert r.json()['id'] == post_id
+
+        time.sleep(2)
+
+        r2 = sc.get_views_dynamic(post_id)
+        stats_after =  [{"date": d.date, "count": d.count} for d in r2.data]
+
+        assert len(stats_after) > len(stats_before)
+
+class TestKAFKA:
+    def test_like_event(self, posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+
+        sc = stats_client.StatisticsClient('statistics:8092')
+
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+
+        r1 = sc.get_likes_dynamic(post_id)
+
+        stats_before =  [{"date": d.date, "count": d.count} for d in r1.data]
+
+
+        send_like_event(user[0][0], post_id)
+        
+        time.sleep(1)
+
+        r2 = sc.get_likes_dynamic(post_id)
+
+        stats_after =  [{"date": d.date, "count": d.count} for d in r2.data]
+
+        assert len(stats_after) > len(stats_before)
+    
+    def test_view_event(self, posts_addr, auth_addr):
+        user = make_user(auth_addr)
+        cookies = login_user(auth_addr, user)
+
+        sc = stats_client.StatisticsClient('statistics:8092')
+
+        post_id = TestPosts.test_create_post(posts_addr, auth_addr)
+
+        r1 = sc.get_views_dynamic(post_id)
+
+        stats_before =  [{"date": d.date, "count": d.count} for d in r1.data]
+
+
+        send_view_event(user[0][0], post_id)
+        
+        time.sleep(1)
+
+        r2 = sc.get_views_dynamic(post_id)
+
+        stats_after =  [{"date": d.date, "count": d.count} for d in r2.data]
+
+        assert len(stats_after) > len(stats_before)
+
+
+        
+
+

@@ -398,3 +398,48 @@ class TestSessions:
         for session in sessions:
             r = make_requests('POST', auth_addr, '/logout', data={"session_id": session["session_id"]}, cookies=cookies)
             assert r.status_code == 200
+
+class TestUsersREST:
+    @staticmethod
+    def test_users_creates(auth_addr, jwt_public):
+        user = make_user(auth_addr)
+        TestAuth.test_login(auth_addr, jwt_public, user)
+        ((_, _), cookies) = user
+
+        r = requests.get(f"http://auth:8090/profile", cookies=cookies)
+
+        res = r.json()
+
+        assert res['created_at']
+        assert res['username']
+    
+    @staticmethod
+    def test_session_increases(auth_addr, jwt_public):
+        user = make_user(auth_addr)
+        TestAuth.test_login(auth_addr, jwt_public, user)
+        ((_, _), cookies) = user
+
+        r = requests.get(f"http://auth:8090/sessions", cookies=cookies)
+        
+        res = r.json()
+
+        assert len(res) == 1
+
+        res = res[0]
+
+        assert res['created_at']
+        assert res['session_id']
+    
+    @staticmethod
+    def test_session_removes(auth_addr, user):
+        sessions = TestSessions.test_list_sessions(auth_addr, user)
+        ((_, _), cookies) = user
+        for session in sessions:
+            r = requests.delete("http://auth:8090/logout",data={"session_id": session["session_id"]}, cookies=cookies)
+            assert r.status_code == 200
+
+
+
+
+
+

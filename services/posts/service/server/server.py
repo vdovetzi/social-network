@@ -158,28 +158,22 @@ class PostServiceImpl(service_pb2_grpc.PostServiceServicer):
             return service_pb2.PostResponse()
 
     def DeletePost(self, request, context):
-        db = SessionLocal()
         try:
-            post = db.query(PostDB).filter(PostDB.id == request.id).first()
+            post = self.db.query(PostDB).filter(PostDB.id == request.id).first()
             if not post:
-                db.close()
                 return service_pb2.DeletePostResponse(success=False)
 
             if post.creator_id != request.deleter_id:
-                db.close()
                 return service_pb2.DeletePostResponse(success=False)
 
-            db.delete(post)
-            db.commit()
+            self.db.delete(post)
+            self.db.commit()
             return service_pb2.DeletePostResponse(success=True)
 
         except Exception as e:
-            db.rollback()
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Error deleting post: {str(e)}")
             return service_pb2.DeletePostResponse(success=False)
-        finally:
-            db.close()
 
     def ListPosts(self, request, context):
         try:
